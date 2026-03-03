@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小学数学算盘计数器（千亿版）</title>
+    <style>
+        :root {
+            --yi-color: #ffebee; /* 亿级背景红 */
+            --yi-border: #ef5350;
+            --wan-color: #e8f5e9; /* 万级背景绿 */
+            --wan-border: #66bb6a;
+            --ge-color: #e3f2fd;  /* 个级背景蓝 */
+            --ge-border: #42a5f5;
+        }
+
+        body {
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            padding-bottom: 120px; /* 为底部按钮留出充足空间 */
+            user-select: none;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 0px white;
+        }
+
+        /* 顶部总数显示 */
+        .total-display {
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+            background: white;
+            padding: 15px 40px;
+            border-radius: 50px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+            font-family: monospace;
+            min-width: 320px;
+            text-align: center;
+            border: 2px solid #fff;
+        }
+
+        /* 计数器主体容器 */
+        .counter-board {
+            display: flex;
+            gap: 8px;
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+            overflow-x: auto;
+            max-width: 100%;
+            transition: all 0.3s ease;
+            border: 1px solid #fff;
+        }
+
+        /* 每一个数位的列 */
+        .digit-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 6px;
+            border-radius: 12px;
+            min-width: 68px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* 弹性动画 */
+        }
+
+        .digit-column.hidden {
+            opacity: 0;
+            width: 0;
+            min-width: 0;
+            padding: 10px 0;
+            margin: 0;
+            overflow: hidden;
+            transform: scale(0);
+        }
+
+        /* 分级颜色 */
+        .group-yi { background-color: var(--yi-color); border: 2px solid var(--yi-border); }
+        .group-wan { background-color: var(--wan-color); border: 2px solid var(--wan-border); }
+        .group-ge { background-color: var(--ge-color); border: 2px solid var(--ge-border); }
+
+        /* 算盘珠子/糖葫芦区域 */
+        .beads-container {
+            width: 100%;
+            height: 180px; /* 9个珠子的高度 + 间距 */
+            display: flex;
+            flex-direction: column-reverse; /* 从下往上加珠子 */
+            align-items: center;
+            position: relative;
+            padding: 5px 0;
+        }
+        /* 糖葫芦的棍子 */
+        .beads-container::before {
+            content: '';
+            position: absolute;
+            width: 4px;
+            height: 100%;
+            background-color: #dcdcdc;
+            border-radius: 2px;
+            z-index: 1;
+        }
+        .bead {
+            width: 32px;
+            height: 18px;
+            background: radial-gradient(circle at 30% 30%, #ff7043, #d84315);
+            border-radius: 50%;
+            box-shadow: 0 2px 3px rgba(0,0,0,0.2);
+            margin-bottom: 2px;
+            z-index: 2;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform: scale(0); /* 初始隐藏 */
+        }
+        .bead.visible {
+            transform: scale(1); /* 动画出现 */
+        }
+
+        /* 数字显示框 */
+        .digit-display {
+            font-size: 36px;
+            font-weight: bold;
+            background: white;
+            width: 54px;
+            height: 54px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 10px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+            color: #333;
+            border: 1px solid #eee;
+        }
+
+        /* 数位标签（个、十、百...） */
+        .label {
+            font-size: 15px;
+            font-weight: bold;
+            color: #555;
+            margin-top: 4px;
+        }
+
+        /* 按钮控制区 */
+        .controls {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .btn-control {
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 18px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.1s;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn-control:active { transform: scale(0.9); }
+        .btn-up { background-color: #ffb74d; }
+        .btn-up:hover { background-color: #ffa726; }
+        .btn-down { background-color: #90a4ae; }
+        .btn-down:hover { background-color: #78909c; }
+
+        /* --- 底部功能区 (新布局) --- */
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap; /* 小屏幕自动换行 */
+            z-index: 100;
+        }
+
+        .action-btn {
+            border: none;
+            border-radius: 30px; /* 胶囊形状 */
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            background-color: white;
+            color: #555;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+        }
+
+        .action-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* 按钮特定颜色 */
+        .btn-toggle-yi { color: #e53935; border: 2px solid #ffcdd2; }
+        .btn-toggle-yi:hover { background-color: #ffebee; }
+
+        .btn-toggle-wan { color: #43a047; border: 2px solid #c8e6c9; }
+        .btn-toggle-wan:hover { background-color: #e8f5e9; }
+
+        .btn-random { color: #fff; background-color: #26a69a; }
+        .btn-random:hover { background-color: #00897b; }
+
+        .btn-reset { color: #fff; background-color: #ff7043; }
+        .btn-reset:hover { background-color: #f4511e; }
+
+    </style>
+</head>
+<body>
+
+    <h1>小学数学算盘计数器</h1>
+
+    <div class="total-display" id="total-view">0</div>
+
+    <div class="counter-board" id="board">
+        <!-- JS 动态生成 -->
+    </div>
+
+    <!-- 底部统一控制栏 -->
+    <div class="bottom-bar" id="bottom-bar">
+        <!-- JS 动态生成 -->
+    </div>
+
+    <script>
+        const places = [
+            { name: "千亿", power: 11, group: "yi" }, { name: "百亿", power: 10, group: "yi" },
+            { name: "十亿", power: 9,  group: "yi" }, { name: "亿",   power: 8,  group: "yi" },
+            { name: "千万", power: 7,  group: "wan" }, { name: "百万", power: 6,  group: "wan" },
+            { name: "十万", power: 5,  group: "wan" }, { name: "万",   power: 4,  group: "wan" },
+            { name: "千",   power: 3,  group: "ge" }, { name: "百",   power: 2,  group: "ge" },
+            { name: "十",   power: 1,  group: "ge" }, { name: "个",   power: 0,  group: "ge" }
+        ];
+
+        const toggleableGroups = [
+            { name: "亿", group: "yi", className: "btn-toggle-yi" },
+            { name: "万", group: "wan", className: "btn-toggle-wan" }
+        ];
+
+        let currentNumber = 0;
+        const MAX_VALUE = 999999999999;
+
+        // 初始化
+        function init() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+
+            places.forEach(place => {
+                const col = document.createElement('div');
+                col.className = `digit-column group-${place.group}`;
+                col.dataset.group = place.group;
+
+                // 1. 算盘珠子
+                const beadsContainer = document.createElement('div');
+                beadsContainer.className = 'beads-container';
+                beadsContainer.id = `beads-${place.power}`;
+                for (let i = 0; i < 9; i++) {
+                    const bead = document.createElement('div');
+                    bead.className = 'bead';
+                    beadsContainer.appendChild(bead);
+                }
+
+                // 2. 数字显示
+                const display = document.createElement('div');
+                display.className = 'digit-display';
+                display.id = `digit-${place.power}`;
+                display.textContent = '0';
+
+                // 3. 标签
+                const label = document.createElement('div');
+                label.className = 'label';
+                label.textContent = place.name;
+
+                // 4. 控制按钮
+                const controls = document.createElement('div');
+                controls.className = 'controls';
+                const btnUp = document.createElement('button');
+                btnUp.className = 'btn-control btn-up';
+                btnUp.textContent = '+';
+                btnUp.onclick = () => changeValue(place.power, 1);
+                const btnDown = document.createElement('button');
+                btnDown.className = 'btn-control btn-down';
+                btnDown.textContent = '-';
+                btnDown.onclick = () => changeValue(place.power, -1);
+                controls.appendChild(btnUp);
+                controls.appendChild(btnDown);
+
+                // 组装
+                col.appendChild(beadsContainer);
+                col.appendChild(display);
+                col.appendChild(label);
+                col.appendChild(controls);
+
+                board.appendChild(col);
+            });
+
+            initBottomBar();
+            updateView();
+        }
+
+        // 初始化底部按钮
+        function initBottomBar() {
+            const bar = document.getElementById('bottom-bar');
+            bar.innerHTML = '';
+
+            // 1. 切换按钮
+            toggleableGroups.forEach(g => {
+                const btn = document.createElement('button');
+                btn.className = `action-btn ${g.className}`;
+                // 默认状态是显示，所以按钮功能是“隐藏”
+                btn.innerHTML = `👁️ 隐藏${g.name}级`;
+                btn.onclick = () => toggleGroup(g.group, btn, g.name);
+                bar.appendChild(btn);
+            });
+
+            // 2. 随机按钮
+            const btnRandom = document.createElement('button');
+            btnRandom.className = 'action-btn btn-random';
+            btnRandom.innerHTML = '🎲 随机生成';
+            btnRandom.onclick = generateRandom;
+            bar.appendChild(btnRandom);
+
+            // 3. 重置按钮
+            const btnReset = document.createElement('button');
+            btnReset.className = 'action-btn btn-reset';
+            btnReset.innerHTML = '🔄 归零重置';
+            btnReset.onclick = resetCounter;
+            bar.appendChild(btnReset);
+        }
+
+        // 核心逻辑：改变数值
+        function changeValue(power, direction) {
+            const amount = Math.pow(10, power);
+            let tempNumber = currentNumber;
+
+            if (direction === 1) {
+                tempNumber += amount;
+                if (tempNumber > MAX_VALUE) tempNumber = MAX_VALUE;
+            } else {
+                tempNumber -= amount;
+                if (tempNumber < 0) tempNumber = 0;
+            }
+            currentNumber = tempNumber;
+            updateView();
+        }
+
+        // 更新视图
+        function updateView() {
+            document.getElementById('total-view').textContent = currentNumber.toLocaleString('en-US');
+            let numStr = Math.floor(currentNumber).toString().padStart(12, '0');
+
+            for (let i = 0; i < 12; i++) {
+                const digitValue = parseInt(numStr[i], 10);
+                const place = places[i];
+
+                // 更新数字
+                document.getElementById(`digit-${place.power}`).textContent = digitValue;
+
+                // 更新算盘珠子
+                const beadsContainer = document.getElementById(`beads-${place.power}`);
+                const beads = beadsContainer.children;
+                for (let j = 0; j < 9; j++) {
+                    if (j < digitValue) {
+                        beads[j].classList.add('visible');
+                    } else {
+                        beads[j].classList.remove('visible');
+                    }
+                }
+            }
+        }
+
+        // 重置
+        function resetCounter() {
+            currentNumber = 0;
+            updateView();
+        }
+
+        // 随机生成
+        function generateRandom() {
+            let finalMax = 0;
+            places.forEach(p => {
+                const col = document.querySelector(`.digit-column[data-group="${p.group}"]`);
+                if (col && !col.classList.contains('hidden')) {
+                    finalMax += 9 * Math.pow(10, p.power);
+                }
+            });
+            finalMax = Math.min(finalMax, MAX_VALUE);
+            if (finalMax === 0) finalMax = MAX_VALUE;
+
+            currentNumber = Math.floor(Math.random() * (finalMax + 1));
+            updateView();
+        }
+
+        // 切换显示/隐藏
+        function toggleGroup(groupName, btn, name) {
+            const columns = document.querySelectorAll(`.digit-column[data-group="${groupName}"]`);
+            const isHidden = columns[0].classList.contains('hidden');
+
+            columns.forEach(col => {
+                col.classList.toggle('hidden');
+            });
+
+            // 切换按钮状态
+            if (isHidden) {
+                // 刚才隐藏，现在显示了 -> 按钮变成“隐藏”
+                btn.innerHTML = `👁️ 隐藏${name}级`;
+                btn.style.opacity = "1";
+            } else {
+                // 刚才显示，现在隐藏了 -> 按钮变成“显示”
+                btn.innerHTML = `🚫 显示${name}级`;
+                btn.style.opacity = "0.7"; // 稍微变淡一点表示关闭状态
+            }
+        }
+
+        // 启动
+        init();
+    </script>
+</body>
+</html>
