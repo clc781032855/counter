@@ -47,6 +47,13 @@
             min-width: 320px;
             text-align: center;
             border: 2px solid #fff;
+            transition: opacity 0.3s ease;
+        }
+
+        /* 顶部总数隐藏状态 */
+        .total-display.hidden {
+            opacity: 0;
+            visibility: hidden;
         }
 
         /* 计数器主体容器 */
@@ -139,6 +146,13 @@
             box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
             color: #333;
             border: 1px solid #eee;
+            transition: opacity 0.3s ease;
+        }
+
+        /* 数字显示框隐藏状态 */
+        .digit-display.hidden {
+            opacity: 0;
+            visibility: hidden;
         }
 
         /* 数位标签（个、十、百...） */
@@ -232,215 +246,271 @@
         .btn-reset { color: #fff; background-color: #ff7043; }
         .btn-reset:hover { background-color: #f4511e; }
 
+        .btn-toggle-answer {
+            color: #fff;
+            background-color: #7b1fa2;
+            border: 2px solid #ce93d8;
+        }
+        .btn-toggle-answer:hover {
+            background-color: #6a1b9a;
+        }
+
     </style>
 </head>
 <body>
 
-    <h1>小学数学算盘计数器</h1>
+<h1>小学数学算盘计数器</h1>
 
-    <div class="total-display" id="total-view">0</div>
+<div class="total-display" id="total-view">0</div>
 
-    <div class="counter-board" id="board">
-        <!-- JS 动态生成 -->
-    </div>
+<div class="counter-board" id="board">
+    <!-- JS 动态生成 -->
+</div>
 
-    <!-- 底部统一控制栏 -->
-    <div class="bottom-bar" id="bottom-bar">
-        <!-- JS 动态生成 -->
-    </div>
+<!-- 底部统一控制栏 -->
+<div class="bottom-bar" id="bottom-bar">
+    <!-- JS 动态生成 -->
+</div>
 
-    <script>
-        const places = [
-            { name: "千亿", power: 11, group: "yi" }, { name: "百亿", power: 10, group: "yi" },
-            { name: "十亿", power: 9,  group: "yi" }, { name: "亿",   power: 8,  group: "yi" },
-            { name: "千万", power: 7,  group: "wan" }, { name: "百万", power: 6,  group: "wan" },
-            { name: "十万", power: 5,  group: "wan" }, { name: "万",   power: 4,  group: "wan" },
-            { name: "千",   power: 3,  group: "ge" }, { name: "百",   power: 2,  group: "ge" },
-            { name: "十",   power: 1,  group: "ge" }, { name: "个",   power: 0,  group: "ge" }
-        ];
+<script>
+    const places = [
+        { name: "千亿", power: 11, group: "yi" }, { name: "百亿", power: 10, group: "yi" },
+        { name: "十亿", power: 9,  group: "yi" }, { name: "亿",   power: 8,  group: "yi" },
+        { name: "千万", power: 7,  group: "wan" }, { name: "百万", power: 6,  group: "wan" },
+        { name: "十万", power: 5,  group: "wan" }, { name: "万",   power: 4,  group: "wan" },
+        { name: "千",   power: 3,  group: "ge" }, { name: "百",   power: 2,  group: "ge" },
+        { name: "十",   power: 1,  group: "ge" }, { name: "个",   power: 0,  group: "ge" }
+    ];
 
-        const toggleableGroups = [
-            { name: "亿", group: "yi", className: "btn-toggle-yi" },
-            { name: "万", group: "wan", className: "btn-toggle-wan" }
-        ];
+    const toggleableGroups = [
+        { name: "亿", group: "yi", className: "btn-toggle-yi" },
+        { name: "万", group: "wan", className: "btn-toggle-wan" }
+    ];
 
-        let currentNumber = 0;
-        const MAX_VALUE = 999999999999;
+    let currentNumber = 0;
+    let showAnswer = false; // 控制是否显示答案
+    const MAX_VALUE = 999999999999;
 
-        // 初始化
-        function init() {
-            const board = document.getElementById('board');
-            board.innerHTML = '';
+    // 初始化
+    function init() {
+        const board = document.getElementById('board');
+        board.innerHTML = '';
 
-            places.forEach(place => {
-                const col = document.createElement('div');
-                col.className = `digit-column group-${place.group}`;
-                col.dataset.group = place.group;
+        places.forEach(place => {
+            const col = document.createElement('div');
+            col.className = `digit-column group-${place.group}`;
+            col.dataset.group = place.group;
 
-                // 1. 算盘珠子
-                const beadsContainer = document.createElement('div');
-                beadsContainer.className = 'beads-container';
-                beadsContainer.id = `beads-${place.power}`;
-                for (let i = 0; i < 9; i++) {
-                    const bead = document.createElement('div');
-                    bead.className = 'bead';
-                    beadsContainer.appendChild(bead);
-                }
+            // 1. 算盘珠子
+            const beadsContainer = document.createElement('div');
+            beadsContainer.className = 'beads-container';
+            beadsContainer.id = `beads-${place.power}`;
+            for (let i = 0; i < 9; i++) {
+                const bead = document.createElement('div');
+                bead.className = 'bead';
+                beadsContainer.appendChild(bead);
+            }
 
-                // 2. 数字显示
-                const display = document.createElement('div');
-                display.className = 'digit-display';
-                display.id = `digit-${place.power}`;
-                display.textContent = '0';
+            // 2. 数字显示 - 初始隐藏
+            const display = document.createElement('div');
+            display.className = 'digit-display hidden';
+            display.id = `digit-${place.power}`;
+            display.textContent = '0';
 
-                // 3. 标签
-                const label = document.createElement('div');
-                label.className = 'label';
-                label.textContent = place.name;
+            // 3. 标签
+            const label = document.createElement('div');
+            label.className = 'label';
+            label.textContent = place.name;
 
-                // 4. 控制按钮
-                const controls = document.createElement('div');
-                controls.className = 'controls';
-                const btnUp = document.createElement('button');
-                btnUp.className = 'btn-control btn-up';
-                btnUp.textContent = '+';
-                btnUp.onclick = () => changeValue(place.power, 1);
-                const btnDown = document.createElement('button');
-                btnDown.className = 'btn-control btn-down';
-                btnDown.textContent = '-';
-                btnDown.onclick = () => changeValue(place.power, -1);
-                controls.appendChild(btnUp);
-                controls.appendChild(btnDown);
+            // 4. 控制按钮
+            const controls = document.createElement('div');
+            controls.className = 'controls';
+            const btnUp = document.createElement('button');
+            btnUp.className = 'btn-control btn-up';
+            btnUp.textContent = '+';
+            btnUp.onclick = () => changeValue(place.power, 1);
+            const btnDown = document.createElement('button');
+            btnDown.className = 'btn-control btn-down';
+            btnDown.textContent = '-';
+            btnDown.onclick = () => changeValue(place.power, -1);
+            controls.appendChild(btnUp);
+            controls.appendChild(btnDown);
 
-                // 组装
-                col.appendChild(beadsContainer);
-                col.appendChild(display);
-                col.appendChild(label);
-                col.appendChild(controls);
+            // 组装
+            col.appendChild(beadsContainer);
+            col.appendChild(display);
+            col.appendChild(label);
+            col.appendChild(controls);
 
-                board.appendChild(col);
-            });
+            board.appendChild(col);
+        });
 
-            initBottomBar();
-            updateView();
+        initBottomBar();
+        updateView();
+    }
+
+    // 初始化底部按钮
+    function initBottomBar() {
+        const bar = document.getElementById('bottom-bar');
+        bar.innerHTML = '';
+
+        // 1. 显示/隐藏答案按钮（放在最前面）
+        const btnToggleAnswer = document.createElement('button');
+        btnToggleAnswer.className = 'action-btn btn-toggle-answer';
+        btnToggleAnswer.innerHTML = '👁️ 显示答案';
+        btnToggleAnswer.onclick = toggleAnswerDisplay;
+        bar.appendChild(btnToggleAnswer);
+
+        // 2. 切换按钮
+        toggleableGroups.forEach(g => {
+            const btn = document.createElement('button');
+            btn.className = `action-btn ${g.className}`;
+            // 默认状态是显示，所以按钮功能是"隐藏"
+            btn.innerHTML = `👁️ 隐藏${g.name}级`;
+            btn.onclick = () => toggleGroup(g.group, btn, g.name);
+            bar.appendChild(btn);
+        });
+
+        // 3. 随机按钮
+        const btnRandom = document.createElement('button');
+        btnRandom.className = 'action-btn btn-random';
+        btnRandom.innerHTML = '🎲 随机生成';
+        btnRandom.onclick = generateRandom;
+        bar.appendChild(btnRandom);
+
+        // 4. 重置按钮
+        const btnReset = document.createElement('button');
+        btnReset.className = 'action-btn btn-reset';
+        btnReset.innerHTML = '🔄 归零重置';
+        btnReset.onclick = resetCounter;
+        bar.appendChild(btnReset);
+    }
+
+    // 切换答案显示/隐藏
+    function toggleAnswerDisplay() {
+        showAnswer = !showAnswer;
+        updateAnswerButtonText();
+        updateView();
+    }
+
+    // 核心逻辑：改变数值
+    function changeValue(power, direction) {
+        const amount = Math.pow(10, power);
+        let tempNumber = currentNumber;
+
+        if (direction === 1) {
+            tempNumber += amount;
+            if (tempNumber > MAX_VALUE) tempNumber = MAX_VALUE;
+        } else {
+            tempNumber -= amount;
+            if (tempNumber < 0) tempNumber = 0;
+        }
+        currentNumber = tempNumber;
+        updateView();
+    }
+
+    // 更新视图
+    function updateView() {
+        const totalView = document.getElementById('total-view');
+        // 更新顶部总数显示，移除逗号分隔符
+        totalView.textContent = currentNumber.toString();
+
+        // 根据showAnswer状态控制顶部总数显示
+        if (showAnswer) {
+            totalView.classList.remove('hidden');
+        } else {
+            totalView.classList.add('hidden');
         }
 
-        // 初始化底部按钮
-        function initBottomBar() {
-            const bar = document.getElementById('bottom-bar');
-            bar.innerHTML = '';
+        let numStr = Math.floor(currentNumber).toString().padStart(12, '0');
 
-            // 1. 切换按钮
-            toggleableGroups.forEach(g => {
-                const btn = document.createElement('button');
-                btn.className = `action-btn ${g.className}`;
-                // 默认状态是显示，所以按钮功能是“隐藏”
-                btn.innerHTML = `👁️ 隐藏${g.name}级`;
-                btn.onclick = () => toggleGroup(g.group, btn, g.name);
-                bar.appendChild(btn);
-            });
+        for (let i = 0; i < 12; i++) {
+            const digitValue = parseInt(numStr[i], 10);
+            const place = places[i];
 
-            // 2. 随机按钮
-            const btnRandom = document.createElement('button');
-            btnRandom.className = 'action-btn btn-random';
-            btnRandom.innerHTML = '🎲 随机生成';
-            btnRandom.onclick = generateRandom;
-            bar.appendChild(btnRandom);
+            // 更新数字
+            const digitElement = document.getElementById(`digit-${place.power}`);
+            digitElement.textContent = digitValue;
 
-            // 3. 重置按钮
-            const btnReset = document.createElement('button');
-            btnReset.className = 'action-btn btn-reset';
-            btnReset.innerHTML = '🔄 归零重置';
-            btnReset.onclick = resetCounter;
-            bar.appendChild(btnReset);
-        }
-
-        // 核心逻辑：改变数值
-        function changeValue(power, direction) {
-            const amount = Math.pow(10, power);
-            let tempNumber = currentNumber;
-
-            if (direction === 1) {
-                tempNumber += amount;
-                if (tempNumber > MAX_VALUE) tempNumber = MAX_VALUE;
+            // 根据showAnswer状态设置显示/隐藏
+            if (showAnswer) {
+                digitElement.classList.remove('hidden');
             } else {
-                tempNumber -= amount;
-                if (tempNumber < 0) tempNumber = 0;
+                digitElement.classList.add('hidden');
             }
-            currentNumber = tempNumber;
-            updateView();
-        }
 
-        // 更新视图
-        function updateView() {
-            document.getElementById('total-view').textContent = currentNumber.toLocaleString('en-US');
-            let numStr = Math.floor(currentNumber).toString().padStart(12, '0');
-
-            for (let i = 0; i < 12; i++) {
-                const digitValue = parseInt(numStr[i], 10);
-                const place = places[i];
-
-                // 更新数字
-                document.getElementById(`digit-${place.power}`).textContent = digitValue;
-
-                // 更新算盘珠子
-                const beadsContainer = document.getElementById(`beads-${place.power}`);
-                const beads = beadsContainer.children;
-                for (let j = 0; j < 9; j++) {
-                    if (j < digitValue) {
-                        beads[j].classList.add('visible');
-                    } else {
-                        beads[j].classList.remove('visible');
-                    }
+            // 更新算盘珠子
+            const beadsContainer = document.getElementById(`beads-${place.power}`);
+            const beads = beadsContainer.children;
+            for (let j = 0; j < 9; j++) {
+                if (j < digitValue) {
+                    beads[j].classList.add('visible');
+                } else {
+                    beads[j].classList.remove('visible');
                 }
             }
         }
+    }
 
-        // 重置
-        function resetCounter() {
-            currentNumber = 0;
-            updateView();
-        }
+    // 重置
+    function resetCounter() {
+        currentNumber = 0;
+        showAnswer = false; // 重置时也隐藏答案
+        updateAnswerButtonText();
+        updateView();
+    }
 
-        // 随机生成
-        function generateRandom() {
-            let finalMax = 0;
-            places.forEach(p => {
-                const col = document.querySelector(`.digit-column[data-group="${p.group}"]`);
-                if (col && !col.classList.contains('hidden')) {
-                    finalMax += 9 * Math.pow(10, p.power);
-                }
-            });
-            finalMax = Math.min(finalMax, MAX_VALUE);
-            if (finalMax === 0) finalMax = MAX_VALUE;
-
-            currentNumber = Math.floor(Math.random() * (finalMax + 1));
-            updateView();
-        }
-
-        // 切换显示/隐藏
-        function toggleGroup(groupName, btn, name) {
-            const columns = document.querySelectorAll(`.digit-column[data-group="${groupName}"]`);
-            const isHidden = columns[0].classList.contains('hidden');
-
-            columns.forEach(col => {
-                col.classList.toggle('hidden');
-            });
-
-            // 切换按钮状态
-            if (isHidden) {
-                // 刚才隐藏，现在显示了 -> 按钮变成“隐藏”
-                btn.innerHTML = `👁️ 隐藏${name}级`;
-                btn.style.opacity = "1";
-            } else {
-                // 刚才显示，现在隐藏了 -> 按钮变成“显示”
-                btn.innerHTML = `🚫 显示${name}级`;
-                btn.style.opacity = "0.7"; // 稍微变淡一点表示关闭状态
+    // 随机生成
+    function generateRandom() {
+        let finalMax = 0;
+        places.forEach(p => {
+            const col = document.querySelector(`.digit-column[data-group="${p.group}"]`);
+            if (col && !col.classList.contains('hidden')) {
+                finalMax += 9 * Math.pow(10, p.power);
             }
-        }
+        });
+        finalMax = Math.min(finalMax, MAX_VALUE);
+        if (finalMax === 0) finalMax = MAX_VALUE;
 
-        // 启动
-        init();
-    </script>
+        currentNumber = Math.floor(Math.random() * (finalMax + 1));
+
+        // 随机生成时隐藏答案
+        showAnswer = false;
+        updateAnswerButtonText();
+        updateView();
+    }
+
+    // 更新答案按钮文本
+    function updateAnswerButtonText() {
+        const btnToggleAnswer = document.querySelector('.btn-toggle-answer');
+        if (btnToggleAnswer) {
+            btnToggleAnswer.innerHTML = showAnswer ? '🙈 隐藏答案' : '👁️ 显示答案';
+        }
+    }
+
+    // 切换显示/隐藏
+    function toggleGroup(groupName, btn, name) {
+        const columns = document.querySelectorAll(`.digit-column[data-group="${groupName}"]`);
+        const isHidden = columns[0].classList.contains('hidden');
+
+        columns.forEach(col => {
+            col.classList.toggle('hidden');
+        });
+
+        // 切换按钮状态
+        if (isHidden) {
+            // 刚才隐藏，现在显示了 -> 按钮变成"隐藏"
+            btn.innerHTML = `👁️ 隐藏${name}级`;
+            btn.style.opacity = "1";
+        } else {
+            // 刚才显示，现在隐藏了 -> 按钮变成"显示"
+            btn.innerHTML = `🚫 显示${name}级`;
+            btn.style.opacity = "0.7"; // 稍微变淡一点表示关闭状态
+        }
+    }
+
+    // 启动
+    init();
+</script>
 </body>
 </html>
