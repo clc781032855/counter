@@ -59,7 +59,6 @@
         /* 计数器主体容器 */
         .counter-board {
             display: flex;
-            gap: 8px;
             background: white;
             padding: 20px;
             border-radius: 20px;
@@ -80,6 +79,7 @@
             border-radius: 12px;
             min-width: 68px;
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* 弹性动画 */
+            margin: 0 4px;
         }
 
         .digit-column.hidden {
@@ -254,6 +254,12 @@
         .btn-toggle-answer:hover {
             background-color: #6a1b9a;
         }
+        
+        /* 新增：逐级增加/减少按钮 */
+        .btn-add-digit { color: #fff; background-color: #29b6f6; }
+        .btn-add-digit:hover { background-color: #039be5; }
+        .btn-remove-digit { color: #555; background-color: #e0e0e0; }
+        .btn-remove-digit:hover { background-color: #bdbdbd; }
 
     </style>
 </head>
@@ -282,14 +288,10 @@
         { name: "十",   power: 1,  group: "ge" }, { name: "个",   power: 0,  group: "ge" }
     ];
 
-    const toggleableGroups = [
-        { name: "亿", group: "yi", className: "btn-toggle-yi" },
-        { name: "万", group: "wan", className: "btn-toggle-wan" }
-    ];
-
     let currentNumber = 0;
     let showAnswer = false; // 控制是否显示答案
     const MAX_VALUE = 999999999999;
+    let maxVisiblePower = 3; // 初始只显示到"千"位 (power=3)
 
     // 初始化
     function init() {
@@ -299,6 +301,7 @@
         places.forEach(place => {
             const col = document.createElement('div');
             col.className = `digit-column group-${place.group}`;
+            col.id = `col-${place.power}`; // 增加ID以便单独控制
             col.dataset.group = place.group;
 
             // 1. 算盘珠子
@@ -346,6 +349,7 @@
         });
 
         initBottomBar();
+        updateColumnVisibility(); // 初始化可见性
         updateView();
     }
 
@@ -361,24 +365,30 @@
         btnToggleAnswer.onclick = toggleAnswerDisplay;
         bar.appendChild(btnToggleAnswer);
 
-        // 2. 切换按钮
-        toggleableGroups.forEach(g => {
-            const btn = document.createElement('button');
-            btn.className = `action-btn ${g.className}`;
-            // 默认状态是显示，所以按钮功能是"隐藏"
-            btn.innerHTML = `👁️ 隐藏${g.name}级`;
-            btn.onclick = () => toggleGroup(g.group, btn, g.name);
-            bar.appendChild(btn);
-        });
+        // 2. 增加一位按钮
+        const btnAdd = document.createElement('button');
+        btnAdd.className = 'action-btn btn-add-digit';
+        btnAdd.id = 'btn-add-digit';
+        btnAdd.innerHTML = '➕ 增加一位';
+        btnAdd.onclick = addDigit;
+        bar.appendChild(btnAdd);
 
-        // 3. 随机按钮
+        // 3. 减少一位按钮
+        const btnRemove = document.createElement('button');
+        btnRemove.className = 'action-btn btn-remove-digit';
+        btnRemove.id = 'btn-remove-digit';
+        btnRemove.innerHTML = '➖ 隐藏一位';
+        btnRemove.onclick = removeDigit;
+        bar.appendChild(btnRemove);
+
+        // 4. 随机按钮
         const btnRandom = document.createElement('button');
         btnRandom.className = 'action-btn btn-random';
         btnRandom.innerHTML = '🎲 随机生成';
         btnRandom.onclick = generateRandom;
         bar.appendChild(btnRandom);
 
-        // 4. 重置按钮
+        // 5. 重置按钮
         const btnReset = document.createElement('button');
         btnReset.className = 'action-btn btn-reset';
         btnReset.innerHTML = '🔄 归零重置';
@@ -464,7 +474,7 @@
     function generateRandom() {
         let finalMax = 0;
         places.forEach(p => {
-            const col = document.querySelector(`.digit-column[data-group="${p.group}"]`);
+            const col = document.getElementById(`col-${p.power}`);
             if (col && !col.classList.contains('hidden')) {
                 finalMax += 9 * Math.pow(10, p.power);
             }
@@ -488,25 +498,36 @@
         }
     }
 
-    // 切换显示/隐藏
-    function toggleGroup(groupName, btn, name) {
-        const columns = document.querySelectorAll(`.digit-column[data-group="${groupName}"]`);
-        const isHidden = columns[0].classList.contains('hidden');
+    // 增加一位
+    function addDigit() {
+        if (maxVisiblePower < 11) {
+            maxVisiblePower++;
+            updateColumnVisibility();
+        }
+    }
 
-        columns.forEach(col => {
-            col.classList.toggle('hidden');
+    // 减少一位
+    function removeDigit() {
+        if (maxVisiblePower > 3) { // 保持个十百千(0-3)不被隐藏
+            maxVisiblePower--;
+            updateColumnVisibility();
+        }
+    }
+
+    // 更新列的可见性
+    function updateColumnVisibility() {
+        places.forEach(place => {
+            const col = document.getElementById(`col-${place.power}`);
+            if (place.power <= maxVisiblePower) {
+                col.classList.remove('hidden');
+            } else {
+                col.classList.add('hidden');
+            }
         });
 
-        // 切换按钮状态
-        if (isHidden) {
-            // 刚才隐藏，现在显示了 -> 按钮变成"隐藏"
-            btn.innerHTML = `👁️ 隐藏${name}级`;
-            btn.style.opacity = "1";
-        } else {
-            // 刚才显示，现在隐藏了 -> 按钮变成"显示"
-            btn.innerHTML = `🚫 显示${name}级`;
-            btn.style.opacity = "0.7"; // 稍微变淡一点表示关闭状态
-        }
+        // 更新按钮状态（如果到顶或到底了，可以置灰，这里简单处理透明度）
+        document.getElementById('btn-add-digit').style.opacity = maxVisiblePower >= 11 ? "0.5" : "1";
+        document.getElementById('btn-remove-digit').style.opacity = maxVisiblePower <= 3 ? "0.5" : "1";
     }
 
     // 启动
